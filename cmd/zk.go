@@ -19,7 +19,7 @@ func main() {
 			CheckStatusEndpoint: quorum.ZkLocalExhibitorCheckStatusEndpoint,
 		},
 	}
-	command.RegisterFunc("setup", config,
+	command.RegisterFunc("bootstrap", config,
 		func(a []string, w io.Writer) error {
 			defer config.Close()
 
