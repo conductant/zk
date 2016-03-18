@@ -1,11 +1,10 @@
 # Zookeeper
 
-# Pull base image.
-FROM alpine:3.2
+FROM alpine:3.3
 
 ADD build/linux-amd64/zk /usr/local/bin/zk
 
-RUN apk --update add openjdk7
+RUN apk --update add openjdk8
 RUN apk add --update bash
 RUN java -version
 
@@ -27,7 +26,7 @@ VOLUME /var/zookeeper
 WORKDIR /var/zookeeper
 
 # Exhibitor requires bash and jps.
-ENV PATH="/usr/lib/jvm/java-1.7-openjdk/bin:$PATH"
+ENV PATH="/usr/lib/jvm/java-1.8-openjdk/bin:$PATH"
 
 EXPOSE 2181 2888 3888 8080
 
