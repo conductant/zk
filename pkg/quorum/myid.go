@@ -84,10 +84,10 @@ func (this *MyIdFile) EnsureState() error {
 			case event := <-watcher.Events:
 				switch event.Op {
 				case fsnotify.Remove, fsnotify.Rename:
-					log.Warn("myid at", this.Path, "removed.  Recreating.")
+					log.Warn("myid at ", this.Path, " removed.  Recreating.")
 					err := this.Create()
 					if err != nil {
-						log.Warn("Cannot create file")
+						log.Warn("Cannot create file!")
 						error <- err
 						break
 					}

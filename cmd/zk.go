@@ -5,9 +5,11 @@ import (
 	"fmt"
 	log "github.com/Sirupsen/logrus"
 	"github.com/conductant/gohm/pkg/command"
+	"github.com/conductant/gohm/pkg/encoding"
 	"github.com/conductant/gohm/pkg/runtime"
 	"github.com/conductant/zk/pkg/quorum"
 	"io"
+	"time"
 )
 
 func main() {
@@ -15,6 +17,8 @@ func main() {
 	config := &quorum.Config{
 		MyIdPath: quorum.MyIdFilePath,
 		Exhibitor: quorum.Exhibitor{
+			ReadyTimeout:        encoding.Duration{5 * time.Minute},
+			ReadyPollInterval:   encoding.Duration{5 * time.Second},
 			ConfigEndpoint:      quorum.ZkLocalExhibitorConfigEndpoint,
 			CheckStatusEndpoint: quorum.ZkLocalExhibitorCheckStatusEndpoint,
 		},
@@ -34,21 +38,18 @@ func main() {
 			}
 			log.Info("Generated config:", string(buff))
 
-			err = config.Exhibitor.Start()
-			if err != nil {
-				return err
-			}
+			log.Info("Exhibitor starting.")
+			config.Exhibitor.Start()
 
 			// Block until Exhibitor is up
+			log.Info("Waiting for Exhibitor to come up.")
 			<-config.Exhibitor.Ready
 
 			log.Info("Applying config")
-
 			config.Exhibitor.ApplyConfig("", buff)
 
-			// TODO - loop here to check the status of zookeeper.
-
-			log.Info("Zookeeper ready.")
+			<-config.ZkRunning
+			log.Info("Zookeeper running.")
 
 			// Block forever....
 			done := make(chan bool)

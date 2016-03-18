@@ -1,0 +1,16 @@
+# Zookeeper
+
+# Pull base image.
+FROM conductant/zk:latest
+
+ADD build/linux-amd64/zk /usr/local/bin/zk
+
+# Expose volumes.  This allows us to use the image as data containers as well
+VOLUME /usr/local/zookeeper/conf
+VOLUME /var/log/zookeeper
+VOLUME /var/zookeeper
+
+WORKDIR /var/zookeeper
+
+EXPOSE 2181 2888 3888 8080
+ENTRYPOINT ["zk"]

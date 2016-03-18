@@ -25,24 +25,26 @@ const (
 )
 
 type Exhibitor struct {
-	ZkReadyTimeout      encoding.Duration  `json:"zk_ready_timeout" yaml:"zk_ready_timeout"`
-	ZkReadyPollInterval encoding.Duration  `json:"zk_ready_poll_interval" yaml:"zk_ready_poll_interval"`
+	ReadyTimeout        encoding.Duration  `json:"zk_ready_timeout" yaml:"zk_ready_timeout"`
+	ReadyPollInterval   encoding.Duration  `json:"zk_ready_poll_interval" yaml:"zk_ready_poll_interval"`
 	ConfigTemplateUrl   string             `json:"config_url" yaml:"config_url" flag:"t, Url of config template."`
 	ConfigEndpoint      string             `json:"config_endpoint" yaml:"config_endpoint"`
 	CheckStatusEndpoint string             `json:"status_endpoint" yaml:"status_endpoint"`
 	Ready               <-chan interface{} `json:"-" yaml:"-"`
 	Error               <-chan error       `json:"-" yaml:"-"`
+	ZkRunning           <-chan interface{} `json:"-" yaml:"-"`
 
 	cmd *exec.Cmd
 }
 
-func (this *Exhibitor) Start() error {
-	err := this.exec()
-	if err != nil {
-		return err
-	}
+func (this *Exhibitor) Start() {
 	this.checkReady()
-	return nil
+	go func() {
+		err := this.exec()
+		if err != nil {
+			panic(err)
+		}
+	}()
 }
 
 func (this *Exhibitor) Stop() error {
@@ -63,6 +65,7 @@ func (this *Exhibitor) exec() error {
 	cmd := exec.Command(command[0], command[1:]...)
 	cmd.Stdout = os.Stdout
 	cmd.Stderr = os.Stderr
+	log.Info("Starting Exhibitor:", cmd.Path, strings.Join(cmd.Args, " "))
 	err := cmd.Start()
 	if err != nil {
 		return err
@@ -71,55 +74,68 @@ func (this *Exhibitor) exec() error {
 	return nil
 }
 
+func (this *Exhibitor) Running() (exhibitorUp bool, zkUp bool, err error) {
+	client := &http.Client{}
+	resp, err := client.Get(this.CheckStatusEndpoint)
+	if err != nil {
+		return false, false, err
+	}
+	exhibitorUp = resp.StatusCode == http.StatusOK
+	if exhibitorUp {
+		if buff, err := ioutil.ReadAll(resp.Body); err == nil {
+			log.Debug("Status=", string(buff), "err=", err)
+			status := new(struct {
+				Running bool `json:"running"`
+			})
+			if err = json.Unmarshal(buff, status); err == nil {
+				zkUp = status.Running
+			}
+		}
+	}
+	return
+}
+
 func (this *Exhibitor) checkReady() {
+	defer log.Info("Started monitoring for Exhibitor to come up.")
+
 	ready := make(chan interface{})
-	error := make(chan error, 100)
+	error := make(chan error, 10)
+	running := make(chan interface{})
 
 	this.Ready = ready
 	this.Error = error
+	this.ZkRunning = running
 
 	go func() {
 
-		ticker := time.Tick(this.ZkReadyPollInterval.Duration)
-		timeout := time.Tick(this.ZkReadyTimeout.Duration)
+		ticker := time.Tick(this.ReadyPollInterval.Duration)
+		timeout := time.Tick(this.ReadyTimeout.Duration)
+		closed := false
 		for {
 			select {
 
 			case <-timeout:
+
+				log.Warn("Timeout polling Exhibitor")
 				error <- errors.New("err-timeout-zk-startup")
 
 			case <-ticker:
 
 				log.Info("CheckReady: ", this.CheckStatusEndpoint)
 
-				client := &http.Client{}
-				resp, err := client.Get(this.CheckStatusEndpoint)
+				exhibitorUp, zkUp, err := this.Running()
+				log.Info("Ready: exhibitor=", exhibitorUp, ",zk=", zkUp, ",err=", err)
 
-				log.Info("CheckReady resp=", resp, "Err=", err)
-
-				if err == nil && resp.StatusCode == http.StatusOK {
-
-					buff, err := ioutil.ReadAll(resp.Body)
-					if err != nil {
-						error <- err
-					}
-
-					status := new(struct {
-						Running bool `json:"running"`
-					})
-					err = json.Unmarshal(buff, status)
-					log.Info("Status=", string(buff), "err=", err)
-
-					// At this point, ready or not just as long we have a response
-					if err == nil {
-						log.Info("Got valid response from Exhibitor: server running=", status.Running)
-						if status.Running {
-							close(ready) // no longer blocks
-						}
-						return
-					} else {
-						log.Info("Exhibitor not running. Wait.")
-					}
+				if exhibitorUp && !closed {
+					close(ready)
+					closed = true
+				}
+				if zkUp {
+					close(running)
+					return
+				}
+				if err != nil {
+					error <- err
 				}
 			}
 		}
