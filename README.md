@@ -5,9 +5,11 @@ This Zookeeper container contains a bootstrapper, Apache Zookeeper, and Netflix'
 ensemble is done via the embedded Exhibitor.  The bootstrapper starts Exhibitor and uses it for configuration of
 the ensemble and then waits for Zookeeper ensemble to be online and ready.
 
-To find usage
+## Usage
 
     docker run --rm -ti conductant/zk:latest -h
+
+## Bootstrap an ensemble
 
 To start the ensemble, for each node, start the container with a list of IP addresses for the nodes that are
 in the quorum and those that are observers.  The bootstrapper will automatically configure the ensemble.  For example,
@@ -20,7 +22,6 @@ let's say we have the following 3 quorum members and 2 observers:
     host4 192.168.99.103 - Observer (O)
     host5 192.168.99.104 - Observer (O)
 ```
-
 On each host, start up the container using the `bootstrap` command and flags to indicate the members of the ensemble.
 Using Docker Machine to point the local docker client to different hosts, then command looks like:
 
@@ -35,6 +36,34 @@ Using Docker Machine to point the local docker client to different hosts, then c
 	-O 192.168.99.103 \
 	-O 192.168.99.104 \
 ```
+
+## Using Docker Machine
+
+Docker-Machine can be used to manage this.  The file `etc/demo-cluster.mk` shows how.  To spin up a new ZK cluster
+locally using the `virtualbox` driver, do this from the top level directory:
+
+```
+% make etc/demo-cluster.mk
+```
+
+This will provision a list of hosts `zk-1`, `zk-2`, `zk-3`.  Using Docker Machine
+
+```
+$ docker-machine ls
+NAME      ACTIVE   DRIVER       STATE     URL                         SWARM   DOCKER    ERRORS
+default   -        virtualbox   Running   tcp://192.168.99.161:2376           v1.10.2   
+zk-1      -        virtualbox   Running   tcp://192.168.99.181:2376           v1.10.3   
+zk-2      -        virtualbox   Running   tcp://192.168.99.182:2376           v1.10.3   
+zk-3      -        virtualbox   Running   tcp://192.168.99.183:2376           v1.10.3
+```
+
+You can then go to any one of the`zk-` hosts to view the Exhibitor UI.  For example:
+
+```
+http://192.168.99.181:8080/exhibitor/v1/ui/index.html
+```
+
+## Print configuration
 
 To get the configuration, use the `print-config` command:
 

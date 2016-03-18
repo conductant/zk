@@ -128,30 +128,30 @@ func (this *Config) GetZkServersSpec() string {
 
 // Generates the client connection hosts string
 func (this *Config) GetZkHosts() string {
-	list := []string{}
-	// Get from observers if any
+	minHosts := 3
+	hosts := []*Server{}
 	for _, s := range this.ensemble {
 		if s.Observer {
-			host := s.Ip
-			port := 2181
-			if s.Port > 0 {
-				port = s.Port
-			}
-			list = append(list, fmt.Sprintf("%s:%d", host, port))
+			hosts = append(hosts, s)
 		}
 	}
-	// If nothing, then just connect to servers
-	if len(list) < 3 {
+	if len(hosts) < minHosts {
+		// Add the voting members too
 		for _, s := range this.ensemble {
-			if !s.Observer {
-				host := s.Ip
-				port := 2181
-				if s.Port > 0 {
-					port = s.Port
-				}
-				list = append(list, fmt.Sprintf("%s:%d", host, port))
+			if !s.Observer && len(hosts) < minHosts {
+				hosts = append(hosts, s)
 			}
 		}
+	}
+	list := []string{}
+	// Get from observers if any
+	for _, s := range hosts {
+		host := s.Ip
+		port := ":2181"
+		if s.Port > 0 {
+			port = fmt.Sprintf(":%d", s.Port)
+		}
+		list = append(list, host+port)
 	}
 	return strings.Join(list, ",")
 }

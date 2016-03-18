@@ -1,0 +1,34 @@
+# Zookeeper
+
+# Pull base image.
+FROM alpine:3.2
+
+ADD build/linux-amd64/zk /usr/local/bin/zk
+
+RUN apk --update add openjdk7
+RUN apk add --update bash
+RUN java -version
+
+RUN rm -rf /var/cache/apk/*
+
+# Zookeeper
+ADD install/zookeeper-3.4.6 /usr/local/zookeeper-3.4.6
+RUN cd /usr/local && ln -s zookeeper-3.4.6 zookeeper
+
+# Exhibitor
+ADD install/exhibitor-1.5.1 /usr/local/exhibitor-1.5.1
+RUN cd /usr/local && ln -s exhibitor-1.5.1 exhibitor
+
+# Expose volumes.  This allows us to use the image as data containers as well
+VOLUME /usr/local/zookeeper/conf
+VOLUME /var/log/zookeeper
+VOLUME /var/zookeeper
+
+WORKDIR /var/zookeeper
+
+# Exhibitor requires bash and jps.
+ENV PATH="/usr/lib/jvm/java-1.7-openjdk/bin:$PATH"
+
+EXPOSE 2181 2888 3888 8080
+
+ENTRYPOINT ["zk"]

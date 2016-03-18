@@ -27,3 +27,4 @@ docker: bin
 
 push: docker
 	docker push $(BUILD_DOCKER_IMAGE)
+	docker push conductant/zk:latest
