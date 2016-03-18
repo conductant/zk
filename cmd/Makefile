@@ -12,8 +12,8 @@ build-zk: clean build-zk-osx build-zk-linux
 
 build-zk-osx:
 	GOOS=darwin GOARCH=amd64 \
-	${GODEP} go build -v -ldflags "$(LDFLAGS)" -o ../build/zk-osx zk.go
+	${GODEP} go build -v -ldflags "$(LDFLAGS)" -o ../build/darwin-amd64/zk zk.go
 
 build-zk-linux:
 	GOOS=linux GOARCH=amd64 \
-	${GODEP} go build -v -ldflags "$(LDFLAGS)" -o ../build/zk-linux zk.go
+	${GODEP} go build -v -ldflags "$(LDFLAGS)" -o ../build/linux-amd64/zk zk.go

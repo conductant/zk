@@ -4,20 +4,24 @@ import (
 	"bytes"
 	"encoding/json"
 	"errors"
+	log "github.com/Sirupsen/logrus"
 	"github.com/conductant/gohm/pkg/encoding"
 	"github.com/conductant/gohm/pkg/resource"
 	"github.com/conductant/gohm/pkg/template"
-	"github.com/golang/glog"
 	"golang.org/x/net/context"
 	"io/ioutil"
 	"net/http"
+	"os"
+	"os/exec"
 	"strings"
+	"syscall"
 	"time"
 )
 
 const (
 	ZkLocalExhibitorConfigEndpoint      = "http://localhost:8080/exhibitor/v1/config/set"
 	ZkLocalExhibitorCheckStatusEndpoint = "http://localhost:8080/exhibitor/v1/config/get-state"
+	ZkLocalExhibitorStartCommand        = "java -jar /usr/local/exhibitor-1.5.1/exhibitor-1.5.1.jar -c file"
 )
 
 type Exhibitor struct {
@@ -26,15 +30,52 @@ type Exhibitor struct {
 	ConfigTemplateUrl   string             `json:"config_url" yaml:"config_url" flag:"t, Url of config template."`
 	ConfigEndpoint      string             `json:"config_endpoint" yaml:"config_endpoint"`
 	CheckStatusEndpoint string             `json:"status_endpoint" yaml:"status_endpoint"`
-	ZkReady             <-chan interface{} `json:"-" yaml:"-"`
+	Ready               <-chan interface{} `json:"-" yaml:"-"`
 	Error               <-chan error       `json:"-" yaml:"-"`
+
+	cmd *exec.Cmd
 }
 
-func (this *Exhibitor) CheckZkReady() {
+func (this *Exhibitor) Start() error {
+	err := this.exec()
+	if err != nil {
+		return err
+	}
+	this.checkReady()
+	return nil
+}
+
+func (this *Exhibitor) Stop() error {
+	if this.cmd == nil {
+		return errors.New("err-not-running")
+	}
+	err := this.cmd.Process.Signal(syscall.SIGTERM)
+	if err != nil {
+		return err
+	}
+	state, err := this.cmd.Process.Wait()
+	log.Info("Process exited=", state.Exited(), "state=", state.String())
+	return err
+}
+
+func (this *Exhibitor) exec() error {
+	command := strings.Split(ZkLocalExhibitorStartCommand, " ")
+	cmd := exec.Command(command[0], command[1:]...)
+	cmd.Stdout = os.Stdout
+	cmd.Stderr = os.Stderr
+	err := cmd.Start()
+	if err != nil {
+		return err
+	}
+	this.cmd = cmd
+	return nil
+}
+
+func (this *Exhibitor) checkReady() {
 	ready := make(chan interface{})
 	error := make(chan error, 100)
 
-	this.ZkReady = ready
+	this.Ready = ready
 	this.Error = error
 
 	go func() {
@@ -49,12 +90,12 @@ func (this *Exhibitor) CheckZkReady() {
 
 			case <-ticker:
 
-				glog.Infoln("CheckReady: ", this.CheckStatusEndpoint)
+				log.Info("CheckReady: ", this.CheckStatusEndpoint)
 
 				client := &http.Client{}
 				resp, err := client.Get(this.CheckStatusEndpoint)
 
-				glog.Infoln("CheckReady resp=", resp, "Err=", err)
+				log.Info("CheckReady resp=", resp, "Err=", err)
 
 				if err == nil && resp.StatusCode == http.StatusOK {
 
@@ -67,17 +108,17 @@ func (this *Exhibitor) CheckZkReady() {
 						Running bool `json:"running"`
 					})
 					err = json.Unmarshal(buff, status)
-					glog.Infoln("Status=", string(buff), "err=", err)
+					log.Info("Status=", string(buff), "err=", err)
 
 					// At this point, ready or not just as long we have a response
 					if err == nil {
-						glog.Infoln("Got valid response from Exhibitor: server running=", status.Running)
+						log.Info("Got valid response from Exhibitor: server running=", status.Running)
 						if status.Running {
 							close(ready) // no longer blocks
 						}
 						return
 					} else {
-						glog.Infoln("Exhibitor not running. Wait.")
+						log.Info("Exhibitor not running. Wait.")
 					}
 				}
 			}

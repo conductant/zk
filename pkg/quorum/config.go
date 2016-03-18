@@ -3,9 +3,8 @@ package quorum
 import (
 	"errors"
 	"fmt"
+	log "github.com/Sirupsen/logrus"
 	"github.com/conductant/gohm/pkg/conf"
-	"github.com/golang/glog"
-	"io"
 	"strings"
 )
 
@@ -27,6 +26,7 @@ type Config struct {
 
 	self     *Server
 	ensemble []*Server // de-duped, sorted
+	myid     *MyIdFile
 }
 
 type Server struct {
@@ -35,52 +35,8 @@ type Server struct {
 	Observer bool
 }
 
-func (this *Config) Help(w io.Writer) {
-	fmt.Fprintln(w, "Configure the quorum")
-}
-
-func (this *Config) Run(args []string, w io.Writer) error {
-	if err := this.Init(); err != nil {
-		return err
-	}
-	glog.Infoln("Initialized")
-
-	// MyId
-	myid := &MyIdFile{
-		Path:  this.MyIdPath,
-		Value: this.GetMyId(),
-	}
-
-	stopChan := make(chan interface{})
-	errChan := make(chan error)
-	if err := myid.EnsureState(stopChan, errChan); err != nil {
-		return err
-	}
-	glog.Infoln("MyID file ready")
-
-	config, err := this.GenerateConfig()
-	if err != nil {
-		return err
-	}
-	glog.Infoln("Generated config:", string(config))
-
-	this.Exhibitor.CheckZkReady()
-
-	this.Exhibitor.ApplyConfig("", config)
-
-	<-this.Exhibitor.ZkReady
-	glog.Infoln("Zookeeper ready.")
-
-	// Block forever....
-	done := make(chan bool)
-	<-done
-
-	stopChan <- 1
-	return nil
-}
-
 func (this *Config) Close() error {
-	return nil
+	return this.myid.Close()
 }
 
 func (this *Config) Init() error {
@@ -108,6 +64,18 @@ func (this *Config) Init() error {
 	sorter.Sort()
 	this.ensemble = sorter.servers
 	this.self = &Server{Ip: this.Hostname}
+
+	// MyId
+	this.myid = &MyIdFile{
+		Path:  this.MyIdPath,
+		Value: this.GetMyId(),
+	}
+
+	if err := this.myid.EnsureState(); err != nil {
+		return err
+	}
+	log.Info("MyID file ready")
+
 	return nil
 }
 

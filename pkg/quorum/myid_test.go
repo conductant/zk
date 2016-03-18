@@ -41,10 +41,7 @@ func (suite *TestSuiteMyIdFile) TestEnsureState(c *C) {
 		Value: 1,
 	}
 
-	stop := make(chan interface{})
-	error := make(chan error)
-
-	err := myid.EnsureState(stop, error)
+	err := myid.EnsureState()
 	c.Assert(err, IsNil)
 
 	// remove it
@@ -55,5 +52,5 @@ func (suite *TestSuiteMyIdFile) TestEnsureState(c *C) {
 
 	c.Assert(myid.Exists(), Equals, true)
 
-	close(stop)
+	myid.Close()
 }

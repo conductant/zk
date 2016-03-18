@@ -12,9 +12,14 @@ $(clean_PKGS): force
 	make -C $(patsubst clean_%,%,$@) clean
 
 bin:
-	cd cmd && make
+	cd cmd && make clean build-zk-linux
 
-docker: cmd
-	-rm ./zk
-	cp build/zk-linux ./zk
-	docker build .
+GIT_TAG=`git describe --abbrev=0 --tags`
+BUILD_DOCKER_IMAGE?=conductant/zk:$(GIT_TAG)
+
+docker: bin
+	docker build -t $(BUILD_DOCKER_IMAGE) .
+	docker tag $(BUILD_DOCKER_IMAGE) conductant/zk:latest
+
+push: docker
+	docker push $(BUILD_DOCKER_IMAGE)

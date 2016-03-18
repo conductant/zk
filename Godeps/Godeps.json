@@ -1,0 +1,71 @@
+{
+	"ImportPath": "github.com/conductant/zk",
+	"GoVersion": "go1.6",
+	"Packages": [
+		"./..."
+	],
+	"Deps": [
+		{
+			"ImportPath": "github.com/Sirupsen/logrus",
+			"Comment": "v0.9.0-15-g219c8cb",
+			"Rev": "219c8cb75c258c552e999735be6df753ffc7afdc"
+		},
+		{
+			"ImportPath": "github.com/conductant/gohm/pkg/command",
+			"Rev": "40f33a541ce245b17bbe26bbc009b2bfde3f8163"
+		},
+		{
+			"ImportPath": "github.com/conductant/gohm/pkg/conf",
+			"Rev": "40f33a541ce245b17bbe26bbc009b2bfde3f8163"
+		},
+		{
+			"ImportPath": "github.com/conductant/gohm/pkg/encoding",
+			"Rev": "40f33a541ce245b17bbe26bbc009b2bfde3f8163"
+		},
+		{
+			"ImportPath": "github.com/conductant/gohm/pkg/flag",
+			"Rev": "40f33a541ce245b17bbe26bbc009b2bfde3f8163"
+		},
+		{
+			"ImportPath": "github.com/conductant/gohm/pkg/resource",
+			"Rev": "40f33a541ce245b17bbe26bbc009b2bfde3f8163"
+		},
+		{
+			"ImportPath": "github.com/conductant/gohm/pkg/runtime",
+			"Rev": "40f33a541ce245b17bbe26bbc009b2bfde3f8163"
+		},
+		{
+			"ImportPath": "github.com/conductant/gohm/pkg/template",
+			"Rev": "40f33a541ce245b17bbe26bbc009b2bfde3f8163"
+		},
+		{
+			"ImportPath": "github.com/conductant/gohm/pkg/version",
+			"Rev": "40f33a541ce245b17bbe26bbc009b2bfde3f8163"
+		},
+		{
+			"ImportPath": "github.com/fsnotify/fsnotify",
+			"Comment": "v1.2.10-6-g3c39c22",
+			"Rev": "3c39c22b2c7b0516d5f2553f1608e5d13cb19053"
+		},
+		{
+			"ImportPath": "github.com/golang/protobuf/proto",
+			"Rev": "0fd8c908d872c921af513ef5091964bbd2e0d904"
+		},
+		{
+			"ImportPath": "golang.org/x/net/context",
+			"Rev": "3e5cd1ed149001198e582f9d3f5bfd564cde2896"
+		},
+		{
+			"ImportPath": "golang.org/x/sys/unix",
+			"Rev": "7a56174f0086b32866ebd746a794417edbc678a1"
+		},
+		{
+			"ImportPath": "gopkg.in/check.v1",
+			"Rev": "4f90aeace3a26ad7021961c297b22c42160c7b25"
+		},
+		{
+			"ImportPath": "gopkg.in/yaml.v2",
+			"Rev": "a83829b6f1293c91addabc89d0571c246397bbf4"
+		}
+	]
+}

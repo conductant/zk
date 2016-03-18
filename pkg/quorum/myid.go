@@ -2,10 +2,11 @@ package quorum
 
 import (
 	"fmt"
+	log "github.com/Sirupsen/logrus"
 	"github.com/fsnotify/fsnotify"
-	"github.com/golang/glog"
 	"io/ioutil"
 	"strconv"
+	"sync"
 )
 
 // Models the myid file used by Zookeeper.  For some reason, Exhibitor
@@ -14,6 +15,11 @@ import (
 type MyIdFile struct {
 	Path  string
 	Value int
+
+	Error <-chan error
+
+	stop chan<- interface{}
+	lock sync.Mutex
 }
 
 // Reads the file at the path and compares the read value with self.
@@ -33,8 +39,28 @@ func (this *MyIdFile) Create() error {
 	return ioutil.WriteFile(this.Path, []byte(fmt.Sprintf("%d", this.Value)), 0666)
 }
 
+func (this *MyIdFile) Close() error {
+	this.lock.Lock()
+	defer this.lock.Unlock()
+	if this.stop != nil {
+		this.stop <- 1
+	}
+	return nil
+}
+
 // Continuously watching the path and ensures that the file matches the state of the id.
-func (this *MyIdFile) EnsureState(stop <-chan interface{}, error chan<- error) error {
+func (this *MyIdFile) EnsureState() error {
+	this.lock.Lock()
+	defer this.lock.Unlock()
+
+	if this.stop != nil {
+		// already running.
+		return nil
+	}
+
+	stop := make(chan interface{})
+	error := make(chan error)
+
 	if !this.Exists() {
 		if err := this.Create(); err != nil {
 			return err
@@ -58,10 +84,10 @@ func (this *MyIdFile) EnsureState(stop <-chan interface{}, error chan<- error) e
 			case event := <-watcher.Events:
 				switch event.Op {
 				case fsnotify.Remove, fsnotify.Rename:
-					glog.Warningln("myid at", this.Path, "removed.  Recreating.")
+					log.Warn("myid at", this.Path, "removed.  Recreating.")
 					err := this.Create()
 					if err != nil {
-						glog.Warningln("Cannot create file")
+						log.Warn("Cannot create file")
 						error <- err
 						break
 					}
@@ -69,14 +95,17 @@ func (this *MyIdFile) EnsureState(stop <-chan interface{}, error chan<- error) e
 				default:
 				}
 			case err := <-watcher.Errors:
-				glog.Warningln("Error:", err)
+				log.Warn("Error:", err)
 				error <- err
 			case <-stop:
 				break
 			}
 		}
-		glog.Infoln("Stopped")
+		log.Info("Stopped")
 	}()
+
+	this.Error = error
+	this.stop = stop
 	return nil
 
 }
